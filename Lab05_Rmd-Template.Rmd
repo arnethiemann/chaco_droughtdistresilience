@@ -13,6 +13,8 @@ library(tidyr)
 library(ggplot2)
 library(terra) # you can also use raster if it is more convenient to you
 library(sf)
+
+library(tidyterra)
 ```
 
 ### Exercise I: Getting to know the data
@@ -20,14 +22,51 @@ library(sf)
 In moodle, you have received a raster stack and the assignment sheet describes the individual layers. Run the code chunk below to load the raster file, afterwards explore the data a bit to understand what the different layers will mean. The second line defines that the EVI of the year 2013 is being plotted.
 
 ```{r}
-all_data <- rast('data_EDGC_Lab4.tif')
-plot(all_data$y2013) 
+all_data <- rast('data_EDGC_Lab5.tif')
+plot(all_data$y2013)
+
+
+year_data <- all_data %>% select(starts_with("y"))
+
+year_data_df <- year_data %>% 
+  as.data.frame(wide = F, xy = T) %>% 
+  rename(year = layer)
+
+ggplot(
+  year_data_df,
+  aes(
+    x, y,
+    fill = values
+  )
+) +
+  geom_raster() +
+  facet_wrap(~ year, ncol = 7) +
+  coord_fixed() +
+  theme_void() +
+  scale_fill_gradientn(
+    colours = c("orange", "white", "darkgreen"),
+    #limits = c(-1, 1),
+    name = "EVI",
+    na.value = NA  # transparent
+  )
+
 ```
 
 Use the code chunk below to mask out the frontier areas by converting them into NA values. The instructions for what frontier areas are can be found in the assignment sheet. After that visualize the same band again as you did above.
 
 ```{r}
+plot(all_data$dist_frontier)
 
+plot(all_data$dist_frontier != 0)
+
+ras_masked <- mask(
+  all_data,
+  all_data$dist_frontier != 0,
+  maskvalues = F
+)
+
+
+plot(ras_masked$y2013)
 ```
 
 
