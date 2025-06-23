@@ -88,9 +88,32 @@ hist(reference_2006_2012)
 
 ```{r}
 
+drought_severity <- ras_masked$y2013 - reference_2006_2012
+names(drought_severity) <- "EVI difference"
+ggplot() +
+  geom_spatraster(
+    data = drought_severity,
+    aes(fill = `EVI difference`)
+  ) +
+  scale_fill_gradient2(
+    low = "red",
+    mid = "white",
+    high = "darkgreen",
+    midpoint = 0,
+#    limits = c(-1, 1),
+    name = "EVI change",
+    na.value = NA
+  )
 
+ggsave(
+  "drought_severity.pdf",
+  dpi = 300
+)
 
 ```
+
+The map of the drought severity shows only a positive EVI difference in the drought year in a central-eastern patch. Apart from this, the areas around show mostly a strong decrease in EVI. In terms of magnitude, the decrease is much stronger than the increase in the small patch.
+
 
 #### Examining EVI values
 The code chunk below converts the raster file into a tibble (or data.frame). Execute the code below and carefully examine the newly created dataset. After that, continue with the instructions from the assignment sheet.
