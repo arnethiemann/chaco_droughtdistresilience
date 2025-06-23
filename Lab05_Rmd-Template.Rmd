@@ -57,11 +57,11 @@ Use the code chunk below to mask out the frontier areas by converting them into 
 ```{r}
 plot(all_data$dist_frontier)
 
-plot(all_data$dist_frontier != 0)
+plot(all_data$onset_yr != 0)
 
 ras_masked <- mask(
   all_data,
-  all_data$dist_frontier != 0,
+  all_data$onset_yr != 0,
   maskvalues = F
 )
 
