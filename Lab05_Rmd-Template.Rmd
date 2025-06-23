@@ -110,6 +110,8 @@ ggsave(
   dpi = 300
 )
 
+ras_masked <- c(ras_masked, drought_severity)
+
 ```
 
 #### Examining EVI values
@@ -120,7 +122,7 @@ The code chunk below converts the raster file into a tibble (or data.frame). Exe
 # evi_pts <- as.points(all_data, values = TRUE, na.rm = TRUE, na.all = FALSE)
 # evi_df = as.data.frame(evi_pts, geom = "XY")
 # easier:
-evi_df <- as.data.frame(ras_masked, xy = T, na.rm = T, cells = T)
+evi_df <- as.data.frame(ras_masked, xy = T, na.rm = T)
 
 evi_df_long <- evi_df %>% 
   pivot_longer(
@@ -131,7 +133,7 @@ evi_df_long <- evi_df %>%
   mutate(year = year %>% substr(2,5) %>% paste0(., "-01") %>% ym())
 ```
 
-Question I:
+**Question I:**
 
 Provide a suitable visualization for the time series of EVI values. Think also about some summary statistics. Describe in a few sentences your graph, and discuss the suitability of the visualization for the data (but also: what problems do you see by manipulating the data in this way?).
 
@@ -149,10 +151,47 @@ ggplot(
   theme_light() +
   labs(y = "EVI", x = "Year") +
   stat_summary(aes(group = 1), colour="red", geom="line")
+
+# Some of the requested statistics:
+evi_df_long %>% 
+  group_by(year) %>% 
+  summarise(EVI = mean(EVI)/1e4, .groups = "drop")
+# ...and so on. I leave it like this because I already have the combined plot.
 ```
+
+The general problem of visualizing 4d data in a 3d or 2d way is that one of the dimensions has to fall short. This is one of the general problems of multispatiomultitemporal data... In this example, I decided to ignore the x and y, resp. the spatial location, by summarizing it:
+
+-   The red line shows the mean value over the years.
+
+-   The boxplots show the median and quartiles.
+
+-   In the background, the grey violin plots give a sense of the value distribution.
+
+This quickly gives a general overview, but completely ignores possible spatial disparities.
+
+**Question 2:**
+
+Next, we want to see whether the areas (i.e., pixels) of drought severity and the precipitation anomaly correspond to each other. The basis for this analysis will again be the tibble you created in the previous step – yet, for visualization purposes, we want you to make this comparison based on a random sample of 10,000 points (i.e., pixels). Choose an appropriate visualization for this comparison – be creative here: add a trend line or a local regression. Combine the plot with the previous plot (i.e., the EVI time series)
+
+Create a panel plot consisting of the comparison of ‘drought severity’ with the precipitation anomaly. Critically examining all the maps and plots you have created so far and discuss with your fellow classmates: is the drought of 2013 reflected in the EVI data? What can be problematic in using EVI for such an assessment? Could you think of alternative aggregations compared to the 90th percentile of annual EVI values that is being used here? Provide 2-3 sentences on your examinations; answer them inside the provided space in the .Rmd-File.\*\*
 
 ```{r}
 
+anomaliesRas <- ras_masked %>% 
+  select(P_anomaly_Chaco_2013, `EVI difference`)
+
+# random sample of 10k values
+anomaliesRas_sample <- spatSample(anomaliesRas, 1e4, na.rm = T, xy = T)
+
+ggplot(
+  anomaliesRas_sample,
+  aes(
+    P_anomaly_Chaco_2013,
+    `EVI difference` /1e4
+  )
+) +
+    geom_density_2d_filled(contour_var = "ndensity") +
+  theme_light()
 ```
 
 #### Examining EVI and precipitation anomaly for the year 2013
