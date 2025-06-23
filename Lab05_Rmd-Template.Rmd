@@ -1,0 +1,148 @@
+---
+title: "Ecosystem Dynamics and Global Change - Lab 5"
+output:
+  html_document:
+    df_print: paged
+---
+## Lab 05 - Time Series Ananlysis
+This .Rmd-File accompanies the description of the lab. It is meant to give you some guidance of the order of the processing as well as some smaller code examples that will help you going through the code. In some cases, you will have to come up with your own solution. As a first step - as usual -  we load the libraries that we will need during the process. Make sure you use the up-to-date versions of the packages
+
+```{r, silent=TRUE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(terra) # you can also use raster if it is more convenient to you
+library(sf)
+```
+
+### Exercise I: Getting to know the data
+
+In moodle, you have received a raster stack and the assignment sheet describes the individual layers. Run the code chunk below to load the raster file, afterwards explore the data a bit to understand what the different layers will mean. The second line defines that the EVI of the year 2013 is being plotted.
+
+```{r}
+all_data <- rast('data_EDGC_Lab4.tif')
+plot(all_data$y2013) 
+```
+
+Use the code chunk below to mask out the frontier areas by converting them into NA values. The instructions for what frontier areas are can be found in the assignment sheet. After that visualize the same band again as you did above.
+
+```{r}
+
+```
+
+
+### Exercise II: Preparing the data and exploring the drought impact
+
+Apply the chunk below to create a new layer in the raster file that represents the average of the years 2006-2012. Execute the script and carefully examine what the individual commands do, including the parts that include the ``tidyR``-syntax. Once you are done with this, use the empty code chunk below to create another new layer that represents the difference between the average of the period 2006-2012 and the drought year 2013. Plot the resulting map and examine the output.
+
+#### Calcualting the reference period
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+#### Examining EVI values
+The code chunk below converts the raster file into a tibble (or data.frame). Execute the code below and carefully examine the newly created dataset. After that, continue with the instructions from the assignment sheet.
+
+```{r}
+evi_pts <- as.points(all_data, values = TRUE, na.rm = TRUE, na.all = FALSE)
+evi_df = as.data.frame(evi_pts, geom = "XY")
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+
+```
+#### Examining EVI and precipitaiton anomaly for the year 2013
+
+Use this code chunk to visualize the variables describing precipitation anomaly and the EVI in 2013 (question 2). As described in the assignment sheet, do this only for a random sample of 10000 observations.
+
+```{r}
+
+```
+
+
+**Use this space to write your answer to question 03**
+
+
+
+### Exercise III: Resilience of Chaco forests to droughts
+
+#### Calculation of four resilience indicators by Gazol et al.
+
+Use the code chunks below to calculate the resilience indices from Gazol et al. (2018).
+```{r}
+# 1. Resistance (Rt)
+
+```
+
+```{r}
+# 2. Recovery (Rc)
+
+
+```
+
+```{r}
+# 3. Resilience (Rs)
+
+
+```
+
+```{r}
+# 4. Relative Resilience (sRs)
+
+
+```
+
+```{r}
+# Plot the maps side by side
+
+
+```
+
+
+
+* Use this space here to answer question 4: "What commonalities do you see what are differences? Provide a few bullet points of your observations."*
+
+
+#### Calculation of time of recovery
+Use the two chunks below to assess the recovery time of the forest areas that experienced a drought. This will require some thinking on the order of the processing, so that you do not overwrite important information. Once you have established a workflow for the non-spatial analysis, you can repeat the same processing technique for the spatial data. 
+
+```{r}
+# Non-spatial
+
+
+```
+
+```{r}
+# Spatial
+
+
+```
+
+```{r}
+# Both plots combined
+
+
+```
+
+#### Export of the recovery map into a geospatial dataset
+```{r}
+writeRaster(THELAYERTOEXPORT, 'YOURFILENAMEHERE.tif', gdal=c('COMPRESS=DEFLATE'), overwrite=TRUE)
+```
+
+* Use this space here to answer question 7*
