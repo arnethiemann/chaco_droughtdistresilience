@@ -129,8 +129,13 @@ evi_df_long <- evi_df %>%
     values_to = "EVI"
   ) %>% 
   mutate(year = year %>% substr(2,5) %>% paste0(., "-01") %>% ym())
+```
 
+Question I:
 
+Provide a suitable visualization for the time series of EVI values. Think also about some summary statistics. Describe in a few sentences your graph, and discuss the suitability of the visualization for the data (but also: what problems do you see by manipulating the data in this way?).
+
+```{r}
 ggplot(
   evi_df_long,
   aes(
@@ -142,18 +147,11 @@ ggplot(
   geom_violin(fill = "grey", col = "grey") +
   geom_boxplot(width = 365 * .2, outliers = F) +
   theme_light() +
-  labs(y = "EVI", x = "Year")
-
+  labs(y = "EVI", x = "Year") +
+  stat_summary(aes(group = 1), colour="red", geom="line")
 ```
 
 ```{r}
-
-
-```
-
-```{r}
-
-
 
 ```
 
