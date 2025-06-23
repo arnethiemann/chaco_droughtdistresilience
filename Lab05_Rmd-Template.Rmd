@@ -8,12 +8,9 @@ output:
 This .Rmd-File accompanies the description of the lab. It is meant to give you some guidance of the order of the processing as well as some smaller code examples that will help you going through the code. In some cases, you will have to come up with your own solution. As a first step - as usual -  we load the libraries that we will need during the process. Make sure you use the up-to-date versions of the packages
 
 ```{r, silent=TRUE}
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(terra) # you can also use raster if it is more convenient to you
+library(tidyverse)
+library(terra)
 library(sf)
-
 library(tidyterra)
 ```
 
@@ -24,7 +21,8 @@ In moodle, you have received a raster stack and the assignment sheet describes t
 ```{r}
 all_data <- rast('data_EDGC_Lab5.tif')
 plot(all_data$y2013)
-
+names(all_data)
+dim(all_data)
 
 year_data <- all_data %>% select(starts_with("y"))
 
@@ -55,7 +53,7 @@ ggplot(
 Use the code chunk below to mask out the frontier areas by converting them into NA values. The instructions for what frontier areas are can be found in the assignment sheet. After that visualize the same band again as you did above.
 
 ```{r}
-plot(all_data$dist_frontier)
+plot(all_data$onset_yr)
 
 plot(all_data$onset_yr != 0)
 
@@ -64,7 +62,6 @@ ras_masked <- mask(
   all_data$onset_yr != 0,
   maskvalues = F
 )
-
 
 plot(ras_masked$y2013)
 ```
@@ -77,9 +74,16 @@ Apply the chunk below to create a new layer in the raster file that represents t
 #### Calcualting the reference period
 
 ```{r}
+year_data <- ras_masked %>% select(starts_with("y"))
 
+time(year_data) <- names(year_data) %>% substr(2,5) %>% paste0(., "-07") %>% ym()
+reference_2006_2012 <- year_data[[
+  time(year_data) > ym("2006-01") & time(year_data) < ymd("2013-01-01")
+]] %>% mean()
 
+plot(reference_2006_2012)
 
+hist(reference_2006_2012)
 ```
 
 ```{r}
