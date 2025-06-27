@@ -14,6 +14,7 @@ library(tidyverse)
 library(terra)
 library(sf)
 library(tidyterra)
+library(ggthemes)
 ```
 
 ### Exercise I: Getting to know the data
@@ -22,50 +23,64 @@ In moodle, you have received a raster stack and the assignment sheet describes t
 
 ```{r}
 all_data <- rast('data_EDGC_Lab5.tif')
-plot(all_data$y2013)
-names(all_data)
-dim(all_data)
 
-year_data <- all_data %>% select(starts_with("y"))
+all_data <- all_data %>%
+  mutate(across(starts_with("y"), ~ .x / 1e4))
 
-year_data_df <- year_data %>% 
-  as.data.frame(wide = F, xy = T) %>% 
-  rename(year = layer)
-
-ggplot(
-  year_data_df,
-  aes(
-    x, y,
-    fill = values
-  )
-) +
-  geom_raster() +
-  facet_wrap(~ year, ncol = 7) +
-  coord_fixed() +
-  theme_void() +
+ggplot() +
+  geom_spatraster(
+    data = all_data %>% select(starts_with("y"))
+  ) +
+  facet_wrap(~lyr) +
   scale_fill_gradientn(
     colours = c("orange", "white", "darkgreen"),
-    #limits = c(-1, 1),
+    limits = c(0, 1),
     name = "EVI",
-    na.value = NA  # transparent
+    na.value = NA
   )
 
+ggplot() +
+  geom_spatraster(
+    data = all_data, aes(fill = y2013)
+  ) +
+    scale_fill_gradientn(
+    colours = c("orange", "white", "darkgreen"),
+    limits = c(0, 1),
+    name = "EVI",
+    na.value = NA
+  ) +
+  labs(title = "2013")
 ```
 
 Use the code chunk below to mask out the frontier areas by converting them into NA values. The instructions for what frontier areas are can be found in the assignment sheet. After that visualize the same band again as you did above.
 
 ```{r}
+# quick check...
 plot(all_data$onset_yr)
+plot(all_data$onset_yr == 0)
 
-plot(all_data$onset_yr != 0)
-
-ras_masked <- mask(
+# throw out anything but no-frontier-ever-pixels
+all_data <- mask(
   all_data,
-  all_data$onset_yr != 0,
+  all_data$onset_yr > 0,
   maskvalues = T
 )
 
-plot(ras_masked$y2013)
+# check result
+ggplot() +
+  geom_spatraster(
+    data = all_data, aes(fill = y2013)
+  ) +
+    scale_fill_gradientn(
+    colours = c("orange", "white", "darkgreen"),
+    limits = c(0, 1),
+    name = "EVI",
+    na.value = NA
+  ) +
+  labs(
+    title = "2013",
+    subtitle = "Any agricultural frontiers (1986-2019) are\nmasked out, unrelated to the year shown"
+  )
 ```
 
 ### Exercise II: Preparing the data and exploring the drought impact
