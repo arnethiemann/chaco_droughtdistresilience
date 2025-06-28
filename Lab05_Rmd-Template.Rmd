@@ -212,22 +212,43 @@ Next, we want to see whether the areas (i.e., pixels) of drought severity and th
 Create a panel plot consisting of the comparison of ‘drought severity’ with the precipitation anomaly. Critically examining all the maps and plots you have created so far and discuss with your fellow classmates: is the drought of 2013 reflected in the EVI data? What can be problematic in using EVI for such an assessment? Could you think of alternative aggregations compared to the 90th percentile of annual EVI values that is being used here? Provide 2-3 sentences on your examinations; answer them inside the provided space in the .Rmd-File.\*\*
 
 ```{r}
-
-anomaliesRas <- ras_masked %>% 
-  select(P_anomaly_Chaco_2013, `EVI difference`)
-
-# random sample of 10k values
-anomaliesRas_sample <- spatSample(anomaliesRas, 1e4, na.rm = T, xy = T)
+chaco_df_sample <- chaco_df %>% sample_n(1e4)
 
 ggplot(
-  anomaliesRas_sample,
+  chaco_df_sample,
   aes(
     P_anomaly_Chaco_2013,
-    `EVI difference` /1e4
+    drought_severity
   )
 ) +
-    geom_density_2d_filled(contour_var = "ndensity") +
-  theme_light()
+  geom_density_2d_filled(contour_var = "ndensity") +
+  scale_fill_grey(start = 1, end = 0) +
+  theme_light() +
+  geom_smooth(method = "lm", se = F)
+
+lm(P_anomaly_Chaco_2013 ~ drought_severity, data = chaco_df_sample) %>% 
+  summary()
+
+
+ggplot(
+  chaco_df_sample,
+  aes(P_anomaly_Chaco_2013, drought_severity)
+) +
+  geom_hex() +
+  scale_fill_gradient(
+    low = "grey90",
+    high = "black"
+  ) +
+  theme_light() +
+  geom_smooth(method = "lm", se = F) +
+  labs(
+    fill = "Counts per\nhexagon",
+    x = "Precipitation anomaly [mm(?)]",
+    y = "Difference in EVI, compared to\nreference period 2006-2012",
+    title = "Chaco: 2013 drought",
+    subtitle = "Correspondence of fewer precipitation and EVI decrease?",
+    caption = "Blue line: linear model regression line"
+  )
 ```
 
 #### Examining EVI and precipitation anomaly for the year 2013
