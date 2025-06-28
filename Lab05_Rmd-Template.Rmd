@@ -103,7 +103,7 @@ all_data$EVI_ref_2006_2012 <- year_evi_ras %>%
   rename(`reference period 2006-2012` = "mean")
 
 # keep your environment clean:
-rm(year_evi_ras)
+#rm(year_evi_ras)
 ```
 
 ```{r}
@@ -282,7 +282,12 @@ ggplot(
     y2013
   )
 ) +
-  geom_hex()
+  geom_hex() +
+  scale_fill_gradient(
+    low = "grey90",
+    high = "black"
+  ) +
+  theme_light() 
 ```
 
 **Use this space to write your answer to question 03**
@@ -295,8 +300,55 @@ Use the code chunks below to calculate the resilience indices from Gazol et al. 
 
 ```{r}
 # 1. Resistance (Rt)
-# resistance index (Rt) quantifies the difference  between EVI during the dry year and the preceding  3 years
+# difference  between EVI during the dry year and the preceding 3 years
+# difference given in relative change/ratio, not absolut difference (Gazol et al., 2018)
 
+get_Rt_ras <- function(years_ras, pointer_year){
+  years_ras[[time(years_ras) == pointer_year]] /
+    mean(years_ras[[
+      time(years_ras) %in% (pointer_year-3):(pointer_year-1)
+    ]]
+  )
+}
+
+resilienceInd_Rt <- get_Rt_ras(year_evi_ras, 2013)
+
+global((resilienceInd_Rt %in% c(-Inf, Inf)), fun = "sum", na.rm = T)
+# Dividing by 0 could cause problems... However, there is just one value causing problems; I will just replace that with an NA. If it would have been more values, using the Normalized Difference insteas of the ratio would have been a nice solution.
+
+resilienceInd_Rt <- resilienceInd_Rt %>%
+  mask(resilienceInd_Rt, maskvalues = c(Inf, -Inf))
+
+# quick and dirty check value distribution - majority of the values should be between 0 and something around 1:
+freq(resilienceInd_Rt) %>% ggplot(
+  aes(value, count)
+) +
+  geom_bar(stat = "identity") +
+  labs(title = "Quick histogram check, to make sure it overall worked...")
+
+# For the sake of simplicity, I will configure the plot in a way that simply incorporates all values, but matches the color ramp to the small, meaningful values:
+ggplot() +
+  geom_spatraster(
+    data = resilienceInd_Rt
+  ) +
+  scale_fill_gradient2(
+    low      = "darkred",  
+    mid      = "white",    
+    high     = "blue",    
+    midpoint = 1,
+    limits   = c(0, 1.5),
+    # Inline-OOB-Funktion: clippt alles < –1 auf –1 und alles > 0.5 auf 0.5
+    oob      = function(x, range) pmax(pmin(x, range[2]), range[1]),
+    na.value = NA,
+    breaks   = c(0, 1, 1.5),
+    labels   = c("≤ 0", "1", "≥ 1.5"),
+    name = "Rt"
+  ) +
+  labs(
+    title = "Resistance (Rt)",
+    subtitle = "mean of 2006-2012 compared to 2013",
+    caption = "Values are trimmed to focus\non plausible values"
+  )
 ```
 
 ```{r}
