@@ -212,6 +212,7 @@ Next, we want to see whether the areas (i.e., pixels) of drought severity and th
 Create a panel plot consisting of the comparison of ‘drought severity’ with the precipitation anomaly. Critically examining all the maps and plots you have created so far and discuss with your fellow classmates: is the drought of 2013 reflected in the EVI data? What can be problematic in using EVI for such an assessment? Could you think of alternative aggregations compared to the 90th percentile of annual EVI values that is being used here? Provide 2-3 sentences on your examinations; answer them inside the provided space in the .Rmd-File.\*\*
 
 ```{r}
+set.seed(12345)
 chaco_df_sample <- chaco_df %>% sample_n(1e4)
 
 ggplot(
@@ -256,7 +257,15 @@ ggplot(
 Use this code chunk to visualize the variables describing precipitation anomaly and the EVI in 2013 (question 2). As described in the assignment sheet, do this only for a random sample of 10000 observations.
 
 ```{r}
+# not sure if I understood the task right - just visualizing EVI_2013 and P_anom here??
 
+ggplot(
+  chaco_df_sample,
+  aes(
+    P_anomaly_Chaco_2013,
+    y2013
+  )
+)
 ```
 
 **Use this space to write your answer to question 03**
@@ -269,6 +278,7 @@ Use the code chunks below to calculate the resilience indices from Gazol et al. 
 
 ```{r}
 # 1. Resistance (Rt)
+
 
 ```
 
