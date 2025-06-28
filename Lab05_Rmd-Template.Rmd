@@ -90,33 +90,25 @@ Apply the chunk below to create a new layer in the raster file that represents t
 #### Calculating the reference period
 
 ```{r}
-# I have to admit, this solution seems a unnecessarily complicated at first, but I like more flexible solutions much more as they often prevent errors when applied on other datasets...
-
 year_evi_ras <- all_data %>% select(starts_with("y"))
 
 time(year_evi_ras) <- names(year_evi_ras) %>%
-  substr(2,5) %>% paste0(., "-07") %>% ym()
+  substr(2,5) %>% as.integer()
 
-ref_2006_2012 <- year_evi_ras %>% 
+all_data$EVI_ref_2006_2012 <- year_evi_ras %>% 
   subset(
-    between(
-        time(year_evi_ras),
-        as.Date("2006-01-01"),
-        as.Date("2012-12-31")
-    )
+    time(year_evi_ras) %in% 2006:2012
   ) %>% 
-  mean()
-
-names(ref_2006_2012) <- "reference period 2006-2012"
-
-all_data$EVI_ref_2006_2012 <- ref_2006_2012
+  mean() %>% 
+  rename(`reference period 2006-2012` = "mean")
 
 # keep your environment clean:
-rm(year_evi_ras, ref_2006_2012)
+rm(year_evi_ras)
 ```
 
 ```{r}
 all_data$drought_severity <- all_data$y2013 - all_data$EVI_ref_2006_2012
+
 names(all_data$drought_severity) <- "EVI difference 2013 to reference period"
 
 ggplot() +
@@ -133,12 +125,6 @@ ggplot() +
     na.value = NA
   ) +
   labs(title = "Comparison", subtitle = "2013 vs. reference period 2006-2012")
-
-ggsave(
-  "drought_severity.pdf",
-  dpi = 300
-)
-
 ```
 
 #### Examining EVI values
@@ -159,7 +145,7 @@ chaco_df_long <- chaco_df %>%
     names_to = "Year",
     values_to = "EVI"
   ) %>% 
-  mutate(Year = Year %>% substr(2,5) %>% paste0(., "-01") %>% ym())
+  mutate(Year = Year %>% substr(2,5) %>% as.integer())
 ```
 
 **Question I:**
@@ -176,32 +162,62 @@ ggplot(
   )
 ) +
   geom_violin(fill = "grey", col = "grey") +
-  geom_boxplot(width = 365 * .2, outliers = F) +
+  geom_boxplot(width = .2, outliers = F) +
   theme_light() +
   stat_summary(aes(group = 1), colour="deepskyblue2", geom="crossbar") +
   labs(caption = "Blue crossbar represents the mean value") +
   scale_y_continuous(breaks = seq(0, 1, .2), minor_breaks = seq(0, 1, .05))
 
-# Some of the requested statistics:
-chaco_df_long %>% 
-  group_by(Year) %>% 
-  summarise(
-    EVI_mean = mean(EVI),
-    EVI_median = median(EVI),
-    EVI_q25 = quantile(EVI, probs = .25),
-    EVI_q75 = quantile(EVI, probs = .75),
-    .groups = "drop"
-  ) %>% 
-  mutate(Year = year(Year))
+
+# Some statistics:
+
+chaco_statistics <- inner_join(
+  chaco_df_long %>% 
+    group_by(Year) %>% 
+    summarise(mean = mean(EVI), .groups = "drop"),
+  chaco_df_long %>% 
+    group_by(Year) %>% 
+    summarise(
+      quantile(
+        EVI,
+        probs = c(0, .05, .1, seq(.25, .75, .25), .9, .95, 1)
+      ) %>% 
+      as_tibble_row(.name_repair = \(x) paste0('q', parse_number(x)))
+    ),
+  by = "Year"
+)
+
+library(ggrepel)
+ggplot(
+  chaco_statistics %>% 
+    pivot_longer(!Year) %>% 
+    filter(!name %in% c("q0", "q100")),
+  aes(Year, value, groups = name)
+) +
+  geom_line() +
+  geom_point() +
+  geom_label_repel(
+    data = filter(
+      chaco_statistics %>%
+        pivot_longer(!Year) %>%
+        filter(!name %in% c("q0", "q100")),
+      Year == first(Year)),
+    aes(label = name),
+    direction = "y",
+    segment.colour = "darkgrey"
+  ) +
+  theme_light()
 ```
 
-The general problem of visualizing 4d data in a 3d or 2d way is that one of the dimensions has to fall short. This is one of the general problems of multispatiomultitemporal data... In this example, I decided to ignore the x and y, resp. the spatial location, by summarizing it:
+The general problem of visualizing 4d data in a 3d or 2d way is that one of the dimensions has to fall short. This is one of the general problems of multispatiomultitemporal data... In this example, I decided to ignore the x and y, resp. the spatial location, by summarizing it. First plot:
 
 -   The blue crossbars show the mean value over the years.
 
 -   The boxplots show the median and quantiles.
 
 -   In the background, the grey violin (density) plots give a sense of the value distribution.
+
+Second plot: Visualization of the statistics, by simply plotting the mean and some percentiles across years.
 
 This quickly gives a general overview, but completely ignores possible spatial disparities, i.e. spatial patterns.
 
@@ -265,7 +281,8 @@ ggplot(
     P_anomaly_Chaco_2013,
     y2013
   )
-)
+) +
+  geom_hex()
 ```
 
 **Use this space to write your answer to question 03**
@@ -278,7 +295,7 @@ Use the code chunks below to calculate the resilience indices from Gazol et al. 
 
 ```{r}
 # 1. Resistance (Rt)
-
+# resistance index (Rt) quantifies the difference  between EVI during the dry year and the preceding  3 years
 
 ```
 
