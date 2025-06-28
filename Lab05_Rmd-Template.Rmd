@@ -87,45 +87,57 @@ ggplot() +
 
 Apply the chunk below to create a new layer in the raster file that represents the average of the years 2006-2012. Execute the script and carefully examine what the individual commands do, including the parts that include the `tidyR`-syntax. Once you are done with this, use the empty code chunk below to create another new layer that represents the difference between the average of the period 2006-2012 and the drought year 2013. Plot the resulting map and examine the output.
 
-#### Calcualting the reference period
+#### Calculating the reference period
 
 ```{r}
-year_data <- ras_masked %>% select(starts_with("y"))
+# I have to admit, this solution seems a unnecessarily complicated at first, but I like more flexible solutions much more as they often prevent errors when applied on other datasets...
 
-time(year_data) <- names(year_data) %>% substr(2,5) %>% paste0(., "-07") %>% ym()
-reference_2006_2012 <- year_data[[
-  time(year_data) > ym("2006-01") & time(year_data) < ymd("2013-01-01")
-]] %>% mean()
+year_evi_ras <- all_data %>% select(starts_with("y"))
 
-plot(reference_2006_2012)
+time(year_evi_ras) <- names(year_evi_ras) %>%
+  substr(2,5) %>% paste0(., "-07") %>% ym()
 
-hist(reference_2006_2012)
+ref_2006_2012 <- year_evi_ras %>% 
+  subset(
+    between(
+        time(year_evi_ras),
+        as.Date("2006-01-01"),
+        as.Date("2012-12-31")
+    )
+  ) %>% 
+  mean()
+
+names(ref_2006_2012) <- "reference period 2006-2012"
+
+all_data$EVI_ref_2006_2012 <- ref_2006_2012
+
+# keep your environment clean:
+rm(year_evi_ras, ref_2006_2012)
 ```
 
 ```{r}
+all_data$drought_severity <- all_data$y2013 - all_data$EVI_ref_2006_2012
+names(all_data$drought_severity) <- "EVI difference 2013 to reference period"
 
-drought_severity <- ras_masked$y2013 - reference_2006_2012
-names(drought_severity) <- "EVI difference"
 ggplot() +
   geom_spatraster(
-    data = drought_severity,
-    aes(fill = `EVI difference`)
+    data = all_data,
+    aes(fill = `drought_severity`)
   ) +
   scale_fill_gradient2(
     low = "red",
     mid = "white",
     high = "darkgreen",
     midpoint = 0,
-    name = "EVI change",
+    name = "EVI difference",
     na.value = NA
-  )
+  ) +
+  labs(title = "Comparison", subtitle = "2013 vs. reference period 2006-2012")
 
 ggsave(
   "drought_severity.pdf",
   dpi = 300
 )
-
-ras_masked <- c(ras_masked, drought_severity)
 
 ```
 
@@ -136,16 +148,18 @@ The code chunk below converts the raster file into a tibble (or data.frame). Exe
 ```{r}
 # evi_pts <- as.points(all_data, values = TRUE, na.rm = TRUE, na.all = FALSE)
 # evi_df = as.data.frame(evi_pts, geom = "XY")
-# easier:
-evi_df <- as.data.frame(ras_masked, xy = T, na.rm = T)
 
-evi_df_long <- evi_df %>% 
+# I think it's possible without transforming to points first:
+
+chaco_df <- as.data.frame(all_data, xy = T, na.rm = T)
+
+chaco_df_long <- chaco_df %>%
   pivot_longer(
-    !c(x, y, onset_yr, dist_frontier, P_anomaly_Chaco_2013, cell),
-    names_to = "year",
+    !c(x, y, onset_yr, dist_frontier, P_anomaly_Chaco_2013, EVI_ref_2006_2012, drought_severity),
+    names_to = "Year",
     values_to = "EVI"
   ) %>% 
-  mutate(year = year %>% substr(2,5) %>% paste0(., "-01") %>% ym())
+  mutate(Year = Year %>% substr(2,5) %>% paste0(., "-01") %>% ym())
 ```
 
 **Question I:**
@@ -154,35 +168,42 @@ Provide a suitable visualization for the time series of EVI values. Think also a
 
 ```{r}
 ggplot(
-  evi_df_long,
+  chaco_df_long,
   aes(
-    year,
-    EVI/1e4,
-    group = year
+    Year,
+    EVI,
+    group = Year
   )
 ) +
   geom_violin(fill = "grey", col = "grey") +
   geom_boxplot(width = 365 * .2, outliers = F) +
   theme_light() +
-  labs(y = "EVI", x = "Year") +
-  stat_summary(aes(group = 1), colour="red", geom="line")
+  stat_summary(aes(group = 1), colour="deepskyblue2", geom="crossbar") +
+  labs(caption = "Blue crossbar represents the mean value") +
+  scale_y_continuous(breaks = seq(0, 1, .2), minor_breaks = seq(0, 1, .05))
 
 # Some of the requested statistics:
-evi_df_long %>% 
-  group_by(year) %>% 
-  summarise(EVI = mean(EVI)/1e4, .groups = "drop")
-# ...and so on. I leave it like this because I already have the combined plot.
+chaco_df_long %>% 
+  group_by(Year) %>% 
+  summarise(
+    EVI_mean = mean(EVI),
+    EVI_median = median(EVI),
+    EVI_q25 = quantile(EVI, probs = .25),
+    EVI_q75 = quantile(EVI, probs = .75),
+    .groups = "drop"
+  ) %>% 
+  mutate(Year = year(Year))
 ```
 
 The general problem of visualizing 4d data in a 3d or 2d way is that one of the dimensions has to fall short. This is one of the general problems of multispatiomultitemporal data... In this example, I decided to ignore the x and y, resp. the spatial location, by summarizing it:
 
--   The red line shows the mean value over the years.
+-   The blue crossbars show the mean value over the years.
 
--   The boxplots show the median and quartiles.
+-   The boxplots show the median and quantiles.
 
--   In the background, the grey violin plots give a sense of the value distribution.
+-   In the background, the grey violin (density) plots give a sense of the value distribution.
 
-This quickly gives a general overview, but completely ignores possible spatial disparities.
+This quickly gives a general overview, but completely ignores possible spatial disparities, i.e. spatial patterns.
 
 **Question 2:**
 
