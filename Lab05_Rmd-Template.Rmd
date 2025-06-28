@@ -313,9 +313,8 @@ get_Rt_ras <- function(years_ras, pointer_year){
 
 resilienceInd_Rt <- get_Rt_ras(year_evi_ras, 2013)
 
-global((resilienceInd_Rt %in% c(-Inf, Inf)), fun = "sum", na.rm = T)
 # Dividing by 0 could cause problems... However, there is just one value causing problems; I will just replace that with an NA. If it would have been more values, using the Normalized Difference insteas of the ratio would have been a nice solution.
-
+global((resilienceInd_Rt %in% c(-Inf, Inf)), fun = "sum", na.rm = T)
 resilienceInd_Rt <- resilienceInd_Rt %>%
   mask(resilienceInd_Rt, maskvalues = c(Inf, -Inf))
 
@@ -327,7 +326,7 @@ freq(resilienceInd_Rt) %>% ggplot(
   labs(title = "Quick histogram check, to make sure it overall worked...")
 
 # For the sake of simplicity, I will configure the plot in a way that simply incorporates all values, but matches the color ramp to the small, meaningful values:
-ggplot() +
+plot_Rt <- ggplot() +
   geom_spatraster(
     data = resilienceInd_Rt
   ) +
@@ -346,33 +345,138 @@ ggplot() +
   ) +
   labs(
     title = "Resistance (Rt)",
-    subtitle = "mean of 2006-2012 compared to 2013",
+    subtitle = "mean of 2010-2012 in relation to 2013",
     caption = "Values are trimmed to focus\non plausible values"
   )
+
+plot_Rt
 ```
 
 ```{r}
 # 2. Recovery (Rc)
 
+get_Rc_ras <- function(years_ras, pointer_year){
+  mean(years_ras[[time(years_ras) %in% (pointer_year+1):(pointer_year+3)]])/
+    years_ras[[time(years_ras) == pointer_year]]
+}
 
+resilienceInd_Rc <- get_Rc_ras(year_evi_ras, 2013)
+
+# quick and dirty check value distribution - majority of the values should be between 0 and something around 1:
+freq(resilienceInd_Rc) %>% View()
+hist(resilienceInd_Rc)
+
+plot_Rc <- ggplot() +
+  geom_spatraster(
+    data = resilienceInd_Rc
+  ) +
+  scale_fill_gradient2(
+    low      = "darkred",
+    mid      = "white",    
+    high     = "blue",    
+    midpoint = 1,
+    limits   = c(0, 2),
+    # Inline-OOB-Funktion: clippt alles < –1 auf –1 und alles > 0.5 auf 0.5
+    oob      = function(x, range) pmax(pmin(x, range[2]), range[1]),
+    na.value = NA,
+    breaks   = c(0, 1, 2),
+    labels   = c("≤ 0", "1", "≥ 2"),
+    name = "Rc"
+  ) +
+  labs(
+    title = "Recovery (Rc)",
+    subtitle = "mean of 2014-2016 in relation to 2013",
+    caption = "Values are trimmed to focus\non plausible values"
+  )
+
+plot_Rc
 ```
 
 ```{r}
 # 3. Resilience (Rs)
+# here, the difference is needed again
 
+get_Rs_ras <- function(years_ras, pointer_year){
+  mean(years_ras[[time(years_ras) %in% (pointer_year+1):(pointer_year+3)]])-
+    mean(years_ras[[time(years_ras) %in% (pointer_year-3):(pointer_year-1)]])
+}
 
+resilienceInd_Rs <- get_Rs_ras(year_evi_ras, 2013)
+
+plot_Rs <- ggplot() +
+  geom_spatraster(
+    data = resilienceInd_Rs
+  ) +
+  scale_fill_gradient2(
+    low      = "darkred",
+    mid      = "white",    
+    high     = "blue",    
+    midpoint = 0,
+    limits   = c(-.25, .25),
+    # Inline-OOB-Funktion: clippt alles < –1 auf –1 und alles > 0.5 auf 0.5
+    oob      = function(x, range) pmax(pmin(x, range[2]), range[1]),
+    na.value = NA,
+    breaks   = c(-.25, -0, .25),
+    labels   = c("≤ - 0.25", "0", "≥ 0.25"),
+    name = "ΔEVI"
+  ) +
+  labs(
+    title = "Resilience (Rs)",
+    subtitle = "difference betw. 2010-2012 and 2014-2016",
+    caption = "Values are trimmed to focus\non plausible values"
+  )
+
+plot_Rs
 ```
 
 ```{r}
 # 4. Relative Resilience (sRs)
+# resilience weighted by the growth reduction: difference between Rs and Rt (Gazol et al., 2018)
 
+# My original understanding was to calculate Rs - Rt, but I think this makes more sense:
+resilienceInd_rRs <- resilienceInd_Rs * (resilienceInd_Rt*-1)
 
+freq(resilienceInd_rRs)
+
+plot_rRs <- ggplot() +
+  geom_spatraster(
+    data = resilienceInd_rRs
+  ) +
+  scale_fill_gradient2(
+    low      = "darkred",
+    mid      = "white",    
+    high     = "blue",    
+    midpoint = 0,
+    limits   = c(-.2, .2),
+    # Inline-OOB-Funktion: clippt alles < –1 auf –1 und alles > 0.5 auf 0.5
+    oob      = function(x, range) pmax(pmin(x, range[2]), range[1]),
+    na.value = NA,
+    breaks   = c(-.2, 0, .2),
+    labels   = c("≤ -0.2", "0", "≥ 0.2"),
+    name = "weighted index\n(dimensionless)"
+  ) +
+  labs(
+    title = "Relative Resilience (rRs)",
+    subtitle = "Resilience (Rs) weighted by growth reduction (Rt)",
+    caption = "Values are trimmed to focus\non plausible values"
+  )
+
+plot_rRs
 ```
 
 ```{r}
 # Plot the maps side by side
 
+library(ggpubr)
+ggarrange(
+  plot_Rt + labs(caption = NULL, subtitle = NULL) + theme(legend.position="bottom"),
+  plot_Rc + labs(caption = NULL, subtitle = NULL) + theme(legend.position="bottom"),
+  plot_Rs + labs(caption = NULL, subtitle = NULL) + theme(legend.position="bottom"),
+  plot_rRs + labs(caption = NULL, subtitle = NULL) + theme(legend.position="bottom"),
+  nrow = 1
+)
 
+ggsave("combined_RIs.pdf", dpi = 300, width = 21*1.5, height = 14, units = "cm")
 ```
 
 -   Use this space here to answer question 4: "What commonalities do you see what are differences? Provide a few bullet points of your observations."\*
