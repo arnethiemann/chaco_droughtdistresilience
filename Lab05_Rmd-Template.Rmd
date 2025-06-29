@@ -5,7 +5,7 @@ output:
     df_print: paged
 ---
 
-## Lab 05 - Time Series Ananlysis
+## Lab 05 - Time Series Analysis
 
 This .Rmd-File accompanies the description of the lab. It is meant to give you some guidance of the order of the processing as well as some smaller code examples that will help you going through the code. In some cases, you will have to come up with your own solution. As a first step - as usual - we load the libraries that we will need during the process. Make sure you use the up-to-date versions of the packages
 
@@ -488,19 +488,83 @@ Use the two chunks below to assess the recovery time of the forest areas that ex
 ```{r}
 # Non-spatial
 
+drought_year <- 2013
 
+# reference
+recovery_reference <- chaco_df_long %>% 
+  filter(Year %in% (drought_year-3):(drought_year-1)) %>% 
+  group_by(x, y) %>% 
+  summarise(EVI95 = mean(EVI), .groups = "drop") %>% 
+  mutate(EVI95 = EVI95 * .95)
+
+recovery_result <- chaco_df_long %>% 
+  filter(Year > drought_year) %>% # I will not include 2013 itself here, because trees might show a (EVI-positive) compensation reaction, followed by a decline in the following years
+  left_join(recovery_reference, by = c("x", "y")) %>%
+  filter(EVI >= EVI95) %>% 
+  group_by(x, y) %>% 
+  summarise(recovery_year = min(Year), .groups = "drop") %>% 
+  mutate(recovery_time = recovery_year - drought_year)
+
+recovery_result_hist <- table(recovery_result$recovery_time) %>% t() %>% as.data.frame() %>% rename(x = Var2, count = Freq) %>% select(-Var1)
+
+ggplot(
+  recovery_result_hist,
+  aes(x, count)
+) +
+  geom_bar(stat = "identity") +
+  theme_light() +
+  labs(x = "Years recovery", time, y = "Count of pixels")
 ```
 
 ```{r}
 # Spatial
 
+# I see 3 different ways:
+# 1) Just creating a raster out of the result df from the before task; the x and y is still there. However, we loose information on the NA pixels then; they could be outside the AOI, or not recovered. This is a big disadvantage.
+# 2) Usually, creating a function out of the code non-spatial code chunk and then apply it over all pixels. However, in the way I processed the data, this might not work, or only with significant workarounds. So this is a No, too.
+# 3) Simply working with terra functions. Let's go.
 
+# check if year-layers are in ascending order:
+sum(!year_evi_ras %>% time() == 
+      min(time(year_evi_ras)):
+      max(time(year_evi_ras))) == 0
+
+recovery_reference_ras <- mean(year_evi_ras[[time(year_evi_ras) %in% (drought_year-3):(drought_year-1)]]) * .95
+
+# Again, I will not include 2013 itself here, because trees might show a (EVI-positive) compensation reaction, followed by a decline in the following years
+recovery_result_years_ras <- year_evi_ras[[time(year_evi_ras) > drought_year]] >= recovery_reference_ras
+
+yrs <- time(recovery_result_years_ras)
+
+recovery_result_ras <- recovery_result_years_ras
+for (i in seq_along(time(recovery_result_years_ras))) {
+  recovery_result_ras[[i]] <- ifel(recovery_result_years_ras[[i]], time(recovery_result_years_ras)[i], 9999)
+}
+
+recovery_result_ras <- min(recovery_result_ras, na.rm = TRUE)
+names(recovery_result_ras) <- "recovery_year"
+
+recovery_result_ras_plot <- as.factor(recovery_result_ras)
+
+# Dann die Levels setzen
+levels(recovery_result_ras_plot) <- data.frame(
+  value = c(yrs, 9999),  # NA wird hier nicht explizit als Level gesetzt
+  label = c(as.character(yrs), "not recovered")
+)
+
+ggplot() +
+  geom_spatraster(
+    data = recovery_result_ras_plot
+  ) +
+  scale_fill_discrete(na.translate = FALSE)
 ```
 
 ```{r}
 # Both plots combined
 
 
+
+# margin means: library(ggExtra): https://r-graph-gallery.com/277-marginal-histogram-for-ggplot2.html
 ```
 
 #### Export of the recovery map into a geospatial dataset
