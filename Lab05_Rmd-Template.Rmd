@@ -507,13 +507,15 @@ recovery_result <- chaco_df_long %>%
 
 recovery_result_hist <- table(recovery_result$recovery_time) %>% t() %>% as.data.frame() %>% rename(x = Var2, count = Freq) %>% select(-Var1)
 
-ggplot(
+plot_recoveryYear_nonspat <- ggplot(
   recovery_result_hist,
   aes(x, count)
 ) +
   geom_bar(stat = "identity") +
   theme_light() +
   labs(x = "Years recovery", time, y = "Count of pixels")
+
+plot_recoveryYear_nonspat
 ```
 
 ```{r}
@@ -546,22 +548,33 @@ names(recovery_result_ras) <- "recovery_year"
 
 recovery_result_ras_plot <- as.factor(recovery_result_ras)
 
-# Dann die Levels setzen
 levels(recovery_result_ras_plot) <- data.frame(
-  value = c(yrs, 9999),  # NA wird hier nicht explizit als Level gesetzt
+  value = c(yrs, 9999),
   label = c(as.character(yrs), "not recovered")
 )
 
-ggplot() +
+plot_recoveryYear_ras <- ggplot() +
   geom_spatraster(
     data = recovery_result_ras_plot
   ) +
-  scale_fill_discrete(na.translate = FALSE)
+  #scale_fill_discrete(na.translate = FALSE) +
+  scale_fill_manual(
+    values        = c(colorRampPalette(c("white", "red"))(length(levels(factor(values(recovery_result_ras_plot))))-2), "black"),
+    na.translate  = FALSE,
+    name          = "Recovery year"
+  )
+
+plot_recoveryYear_ras
 ```
 
 ```{r}
 # Both plots combined
-
+ggarrange(
+  plot_recoveryYear_nonspat,
+  plot_recoveryYear_ras,
+  widths = c(1, 1.5),
+  labels = c("a.", "b.")
+)
 
 
 # margin means: library(ggExtra): https://r-graph-gallery.com/277-marginal-histogram-for-ggplot2.html
@@ -570,7 +583,11 @@ ggplot() +
 #### Export of the recovery map into a geospatial dataset
 
 ```{r}
-writeRaster(THELAYERTOEXPORT, 'YOURFILENAMEHERE.tif', gdal=c('COMPRESS=DEFLATE'), overwrite=TRUE)
+writeRaster(
+  recovery_result_ras,
+  "recovery_year.tif",
+  gdal=c('COMPRESS=DEFLATE')
+)
 ```
 
 -   Use this space here to answer question 7\*
